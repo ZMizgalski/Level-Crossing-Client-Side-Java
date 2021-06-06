@@ -1,0 +1,41 @@
+plugins {
+	id 'org.springframework.boot' version '2.5.0'
+	id 'io.spring.dependency-management' version '1.0.11.RELEASE'
+	id 'java'
+}
+
+group = 'trainlookerclientside'
+version = '0.0.1-SNAPSHOT'
+sourceCompatibility = '16'
+
+configurations {
+	compileOnly {
+		extendsFrom annotationProcessor
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+//	implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
+//    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'com.pi4j:pi4j-core:1.4'
+    implementation 'com.github.sarxos:webcam-capture:0.3.12'
+    implementation 'com.github.sarxos:webcam-capture-driver-ipcam:0.3.12'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.jetbrains:annotations:19.0.0'
+    implementation 'io.humble:humble-video-all:0.3.0'
+    implementation 'commons-io:commons-io:2.9.0'
+    implementation 'org.springframework.boot:spring-boot-starter-thymeleaf:2.5.0'
+    compileOnly 'org.projectlombok:lombok'
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
+	developmentOnly 'org.springframework.boot:spring-boot-devtools'
+	annotationProcessor 'org.projectlombok:lombok'
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+test {
+	useJUnitPlatform()
+}
