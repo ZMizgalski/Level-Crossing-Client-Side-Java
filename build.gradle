@@ -30,6 +30,7 @@ dependencies {
     implementation 'commons-io:commons-io:2.9.0'
     implementation 'org.springframework.boot:spring-boot-starter-thymeleaf:2.5.0'
     implementation 'com.diozero:diozero-core:1.2.3'
+    implementation 'com.github.sarxos:webcam-capture-driver-v4l4j:0.3.12'
     compileOnly 'org.projectlombok:lombok'
     implementation 'org.springframework.boot:spring-boot-starter-webflux'
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'

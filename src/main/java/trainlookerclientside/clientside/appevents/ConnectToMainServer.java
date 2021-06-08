@@ -12,7 +12,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
-import java.net.InetAddress;
 import java.net.Socket;
 import java.util.UUID;
 
@@ -26,13 +25,14 @@ public class ConnectToMainServer implements ApplicationListener<ApplicationReady
     @Override
     public void onApplicationEvent(@NotNull ApplicationReadyEvent event) {
         try {
+            //localhost:8080
             Socket s = new Socket("192.168.1.212", 8080);
             RestTemplate restTemplate = new RestTemplate();
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-            HttpEntity<String> request = new HttpEntity<>("{\"levelCrossingIP\":\"" + "http://" + s.getLocalAddress().getHostAddress() + ":" + port + "\", "+ "\"id\":\""+ UUID.randomUUID().toString() +"\"}", headers);
+            HttpEntity<String> request = new HttpEntity<>("{\"levelCrossingIP\":\"" + "http://" + s.getLocalAddress().getHostAddress() + ":" + port + "\", " + "\"id\":\"" + UUID.randomUUID().toString() + "\"}", headers);
             ResponseEntity<String> response = restTemplate.postForEntity(
-                    "http://localhost:8080/api/server/registerNewLevelCrossing",
+                    "http://192.168.1.212/api/server/registerNewLevelCrossing",
                     request,
                     String.class);
             log.warn(response.getBody());

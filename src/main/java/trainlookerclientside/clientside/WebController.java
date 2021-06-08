@@ -6,6 +6,7 @@ import com.diozero.devices.PwmLed;
 import com.diozero.internal.spi.PwmOutputDeviceFactoryInterface;
 import com.diozero.util.SleepUtil;
 import com.github.sarxos.webcam.Webcam;
+import com.github.sarxos.webcam.ds.v4l4j.V4l4jDriver;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
@@ -34,12 +35,16 @@ public class WebController {
     @SneakyThrows
     @PostMapping(value = "/streamCamera/{id}")
     public ResponseEntity<?> streamCamera(@PathVariable String id) {
-        Webcam webcam = Webcam.getDefault();
-        System.out.println(webcam);
-        if (webcam == null) {
+        Webcam webcam1 = Webcam.getDefault();
+        if (webcam1 == null) {
             return ResponseEntity.badRequest().body(String.format("Camera not found for id: %s", id));
         }
-        videoService.recordVideo(webcam, id + ".mp4", null, null, 5, 5);
+        if (videoService.checkIfRasp()) {
+            Webcam.setDriver(new V4l4jDriver());
+        }
+        Webcam webcam2 = Webcam.getDefault();
+        System.out.println(webcam2);
+        videoService.recordVideo(webcam2, id + ".mp4", null, null, 5, 5);
         File file = new File(id + ".mp4");
         String type = FilenameUtils.getExtension(id + ".mp4");
         InputStream inputStream = new FileInputStream(id + ".mp4");

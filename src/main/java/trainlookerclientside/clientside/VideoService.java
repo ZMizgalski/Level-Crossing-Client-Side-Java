@@ -10,9 +10,34 @@ import org.springframework.stereotype.Service;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.InputStreamReader;
 
 @Service
 public class VideoService {
+
+    public boolean checkIfRasp() {
+        final String os = System.getProperty("os.name").toLowerCase();
+        if (os.contains("linux")) {
+            final File file = new File("/etc", "os-release");
+            try (FileInputStream fis = new FileInputStream(file);
+                 BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(fis))) {
+                String string;
+                while ((string = bufferedReader.readLine()) != null) {
+                    if (string.toLowerCase().contains("raspbian")) {
+                        if (string.toLowerCase().contains("name")) {
+                            return true;
+                        }
+                    }
+                }
+            } catch (final Exception e) {
+                return false;
+            }
+        }
+        return false;
+    }
 
     public static BufferedImage convertToType(BufferedImage sourceImage, int targetType) {
         BufferedImage image;
