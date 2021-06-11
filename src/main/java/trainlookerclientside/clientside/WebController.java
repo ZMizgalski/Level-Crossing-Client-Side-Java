@@ -7,7 +7,6 @@ import com.diozero.internal.spi.PwmOutputDeviceFactoryInterface;
 import com.diozero.util.SleepUtil;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.FilenameUtils;
 import org.springframework.boot.web.server.LocalServerPort;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -41,10 +40,16 @@ public class WebController {
         p3.waitFor();
         Process p4 = Runtime.getRuntime().exec("rm " + id + "." + outFormat);
         p4.waitFor();
-        String type = FilenameUtils.getExtension(id + "." + outFormat);
+        HttpHeaders responseHeaders = new HttpHeaders();
+        responseHeaders.set(HttpHeaders.CONTENT_DISPOSITION, "filename=\"" + id + "." + outFormat + "\"");
+        responseHeaders.set(HttpHeaders.CONTENT_RANGE, "" + (out.length - 1));
+        responseHeaders.set(HttpHeaders.ACCEPT_RANGES, "bytes");
+        responseHeaders.set(HttpHeaders.TRANSFER_ENCODING, "Binary");
+        responseHeaders.set(HttpHeaders.ETAG, "W/\"" + id + "\"");
         return ResponseEntity.ok()
-                .contentType(MediaType.valueOf("video/" + type))
-                .header(HttpHeaders.CONTENT_DISPOSITION, "filename=\"" + id + "." + outFormat + "\"")
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .contentLength(out.length)
+                .headers(responseHeaders)
                 .body(out);
     }
 
