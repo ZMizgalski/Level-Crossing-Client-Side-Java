@@ -2,8 +2,8 @@ package trainlookerclientside.clientside.appevents;
 
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.boot.web.server.LocalServerPort;
 import org.springframework.context.ApplicationListener;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -19,20 +19,25 @@ import java.util.UUID;
 @Component
 public class ConnectToMainServer implements ApplicationListener<ApplicationReadyEvent> {
 
-    @LocalServerPort
-    private int port;
+    @Value("${server.port}")
+    private int localPort;
+
+    @Value("${main-server.ip}")
+    private String ip;
+
+    @Value("${main-server.port}")
+    private int mainPort;
 
     @Override
     public void onApplicationEvent(@NotNull ApplicationReadyEvent event) {
         try {
-            //localhost:8080
-            Socket s = new Socket("192.168.1.212", 8080);
+            Socket s = new Socket(ip, mainPort);
             RestTemplate restTemplate = new RestTemplate();
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-            HttpEntity<String> request = new HttpEntity<>("{\"levelCrossingIP\":\"" + "http://" + s.getLocalAddress().getHostAddress() + ":" + port + "\", " + "\"id\":\"" + UUID.randomUUID().toString() + "\"}", headers);
+            HttpEntity<String> request = new HttpEntity<>("{\"levelCrossingIP\":\"" + "http://" + s.getLocalAddress().getHostAddress() + ":" + localPort + "\", " + "\"id\":\"" + UUID.randomUUID().toString() + "\"}", headers);
             ResponseEntity<String> response = restTemplate.postForEntity(
-                    "http://192.168.1.212:8080/api/server/registerNewLevelCrossing",
+                    "http://" + ip + ":" + mainPort + "/api/server/registerNewLevelCrossing",
                     request,
                     String.class);
             log.warn(response.getBody());

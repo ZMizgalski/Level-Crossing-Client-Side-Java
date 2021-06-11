@@ -7,7 +7,6 @@ import com.diozero.internal.spi.PwmOutputDeviceFactoryInterface;
 import com.diozero.util.SleepUtil;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.web.server.LocalServerPort;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -20,9 +19,6 @@ import java.io.InputStream;
 @RestController
 @CrossOrigin(value = "*", maxAge = 3600)
 public class WebController {
-
-    @LocalServerPort
-    private int port;
 
     @SneakyThrows
     @PostMapping(value = "/streamCamera/{id}")
