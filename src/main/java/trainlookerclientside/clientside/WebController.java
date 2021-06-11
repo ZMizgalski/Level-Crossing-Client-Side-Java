@@ -5,19 +5,15 @@ import com.diozero.devices.PCA9685;
 import com.diozero.devices.PwmLed;
 import com.diozero.internal.spi.PwmOutputDeviceFactoryInterface;
 import com.diozero.util.SleepUtil;
-import com.github.sarxos.webcam.Webcam;
-import com.github.sarxos.webcam.ds.v4l4j.V4l4jDriver;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.web.server.LocalServerPort;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
 
@@ -29,31 +25,26 @@ public class WebController {
     @LocalServerPort
     private int port;
 
-    @Autowired
-    private VideoService videoService;
-
     @SneakyThrows
     @PostMapping(value = "/streamCamera/{id}")
     public ResponseEntity<?> streamCamera(@PathVariable String id) {
-        Webcam webcam1 = Webcam.getDefault();
-        if (webcam1 == null) {
-            return ResponseEntity.badRequest().body(String.format("Camera not found for id: %s", id));
-        }
-        if (videoService.checkIfRasp()) {
-            Webcam.setDriver(new V4l4jDriver());
-        }
-        Webcam webcam2 = Webcam.getDefault();
-        System.out.println(webcam2);
-        videoService.recordVideo(webcam2, id + ".mp4", null, null, 5, 5);
-        File file = new File(id + ".mp4");
-        String type = FilenameUtils.getExtension(id + ".mp4");
-        InputStream inputStream = new FileInputStream(id + ".mp4");
+        String format = "h264";
+        String outFormat = "mp4";
+        Process p1 = Runtime.getRuntime().exec("raspivid -n -t 5000 -o " + id + "." + format);
+        p1.waitFor();
+        Process p2 = Runtime.getRuntime().exec("MP4Box -add " + id + "." + format + " " + id + "." + outFormat);
+        p2.waitFor();
+        InputStream inputStream = new FileInputStream(id + "." + outFormat);
         byte[] out = org.apache.commons.io.IOUtils.toByteArray(inputStream);
         inputStream.close();
-        file.delete();
+        Process p3 = Runtime.getRuntime().exec("rm " + id + "." + format);
+        p3.waitFor();
+        Process p4 = Runtime.getRuntime().exec("rm " + id + "." + outFormat);
+        p4.waitFor();
+        String type = FilenameUtils.getExtension(id + "." + outFormat);
         return ResponseEntity.ok()
                 .contentType(MediaType.valueOf("video/" + type))
-                .header(HttpHeaders.CONTENT_DISPOSITION, "filename=\"" + id + ".mp4" + "\"")
+                .header(HttpHeaders.CONTENT_DISPOSITION, "filename=\"" + id + "." + outFormat + "\"")
                 .body(out);
     }
 

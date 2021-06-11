@@ -32,7 +32,7 @@ public class ConnectToMainServer implements ApplicationListener<ApplicationReady
             headers.setContentType(MediaType.APPLICATION_JSON);
             HttpEntity<String> request = new HttpEntity<>("{\"levelCrossingIP\":\"" + "http://" + s.getLocalAddress().getHostAddress() + ":" + port + "\", " + "\"id\":\"" + UUID.randomUUID().toString() + "\"}", headers);
             ResponseEntity<String> response = restTemplate.postForEntity(
-                    "http://192.168.1.212/api/server/registerNewLevelCrossing",
+                    "http://192.168.1.212:8080/api/server/registerNewLevelCrossing",
                     request,
                     String.class);
             log.warn(response.getBody());
