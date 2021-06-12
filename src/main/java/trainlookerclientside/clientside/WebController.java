@@ -43,7 +43,7 @@ public class WebController {
     public ResponseEntity<?> streamCamera(@PathVariable String id) {
         String format = "h264";
         String outFormat = "mp4";
-        Process p1 = Runtime.getRuntime().exec("raspivid -n -t 5000 -o " + id + "." + format);
+        Process p1 = Runtime.getRuntime().exec("raspivid -w 640 -h 480 -n -t 5000 -o " + id + "." + format);
         p1.waitFor();
         Process p2 = Runtime.getRuntime().exec("MP4Box -add " + id + "." + format + " " + id + "." + outFormat);
         p2.waitFor();
