@@ -7,6 +7,7 @@ import com.diozero.internal.spi.PwmOutputDeviceFactoryInterface;
 import com.diozero.util.SleepUtil;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +20,23 @@ import java.io.InputStream;
 @RestController
 @CrossOrigin(value = "*", maxAge = 3600)
 public class WebController {
+
+    @Value("${motor1.pin}")
+    private String motor1Port;
+    @Value("${motor2.pin}")
+    private String motor2Port;
+    @Value("${motor3.pin}")
+    private String motor3Port;
+    @Value("${motor4.pin}")
+    private String motor4Port;
+    @Value("#{T(Float).parseFloat('${motor.delay}')}")
+    private float motorDelay;
+    @Value("#{T(Float).parseFloat('${open.pwm}')}")
+    private float openPwm;
+    @Value("#{T(Float).parseFloat('${close.pwm}')}")
+    private float closePwm;
+    @Value("${pwm.frequency}")
+    private String pwmFrequency;
 
     @SneakyThrows
     @PostMapping(value = "/streamCamera/{id}")
@@ -51,38 +69,72 @@ public class WebController {
 
     @RequestMapping(value = "/openLevelCrossing/{id}")
     public ResponseEntity<?> openLevelCrossing(@PathVariable String id) {
-        float delay = 0.5f;
-        try (PwmOutputDeviceFactoryInterface df = new PCA9685(400);
-             PwmLed led1 = new PwmLed(df, 0);
-             PwmLed led2 = new PwmLed(df, 2);
-             PwmLed led3 = new PwmLed(df, 5)
-        ) {
-            led1.setValue(.25f);
-            led2.setValue(.25f);
-            led3.setValue(.25f);
-            SleepUtil.sleepSeconds(delay);
-        } catch (RuntimeIOException e) {
-            return ResponseEntity.badRequest().body(String.format("Something wrong with motors when opening levelCrossing with id: %s", id));
-
-        }
-        return ResponseEntity.ok().body(String.format("Level crossing opened with id: %s", id));
+        return move4Motors(id,
+                "Level crossing opened with id: %s",
+                "Something wrong with motors when opening levelCrossing with id: %s",
+                motor1Port,
+                motor2Port,
+                motor3Port,
+                motor4Port,
+                motorDelay,
+                openPwm,
+                pwmFrequency,
+                false);
     }
 
     @RequestMapping(value = "/closeLevelCrossing/{id}")
     public ResponseEntity<?> closeLevelCrossing(@PathVariable String id) {
-        float delay = 0.5f;
-        try (PwmOutputDeviceFactoryInterface df = new PCA9685(400);
-             PwmLed led1 = new PwmLed(df, 0);
-             PwmLed led2 = new PwmLed(df, 2);
-             PwmLed led3 = new PwmLed(df, 5)
+        return move4Motors(id,
+                "Level crossing closed with id: %s",
+                "Something wrong with motors when closing levelCrossing with id: %s",
+                motor1Port,
+                motor2Port,
+                motor3Port,
+                motor4Port,
+                motorDelay,
+                closePwm,
+                pwmFrequency,
+                true);
+    }
+
+    private ResponseEntity<?> move4Motors(String levelCrossingId,
+                                          String okResponseMessage,
+                                          String badResponseMessage,
+                                          String motor1Port,
+                                          String motor2Port,
+                                          String motor3Port,
+                                          String motor4Port,
+                                          float delay,
+                                          float pwmValue,
+                                          String pwmFrequency,
+                                          boolean close) {
+        int mot1 = motor1Port == null ? 0 : Integer.parseInt(motor1Port);
+        int mot2 = motor2Port == null ? 1 : Integer.parseInt(motor2Port);
+        int mot3 = motor3Port == null ? 2 : Integer.parseInt(motor3Port);
+        int mot4 = motor4Port == null ? 3 : Integer.parseInt(motor4Port);
+        int pwmFreq = pwmFrequency == null ? 50 : Integer.parseInt(pwmFrequency);
+        float fPwm = pwmValue == 0 ? 0.2f : pwmValue;
+        float fDelay = delay == 0 ? 0.5f : delay;
+        try (PwmOutputDeviceFactoryInterface df = new PCA9685(pwmFreq);
+             PwmLed led1 = new PwmLed(df, mot1);
+             PwmLed led2 = new PwmLed(df, mot2);
+             PwmLed led3 = new PwmLed(df, mot3);
+             PwmLed led4 = new PwmLed(df, mot4)
         ) {
-            led1.setValue(.5f);
-            led2.setValue(.5f);
-            led3.setValue(.5f);
-            SleepUtil.sleepSeconds(delay);
+            led1.setValue(fPwm);
+            led2.setValue(fPwm);
+            if (!close) {
+                led2.toggle();
+            }
+            led3.setValue(fPwm);
+            if (!close) {
+                led3.toggle();
+            }
+            led4.setValue(fPwm);
+            SleepUtil.sleepSeconds(fDelay);
         } catch (RuntimeIOException e) {
-            return ResponseEntity.badRequest().body(String.format("Something wrong with motors when closing levelCrossing with id: %s", id));
+            return ResponseEntity.badRequest().body(String.format(badResponseMessage, levelCrossingId));
         }
-        return ResponseEntity.ok().body(String.format("Level crossing closed with id: %s", id));
+        return ResponseEntity.ok().body(String.format(okResponseMessage, levelCrossingId));
     }
 }
