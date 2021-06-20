@@ -1,5 +1,6 @@
 package trainlookerclientside.clientside.appevents;
 
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Value;
@@ -29,21 +30,35 @@ public class ConnectToMainServer implements ApplicationListener<ApplicationReady
     @Value("${main-server.port}")
     private int mainPort;
 
+    private void sendCurrentIpAddress() {
+        Socket s;
+        try {
+            s = new Socket(ip, socketPort);
+        } catch (IOException ignored) {
+            return;
+        }
+        PrintWriter out = null;
+        try {
+            out = new PrintWriter(s.getOutputStream(), true);
+        } catch (IOException ignored) { }
+        assert out != null;
+        out.write("http://" + s.getLocalAddress().getHostAddress() + ":" + localPort);
+        out.close();
+    }
+
     @Override
     public void onApplicationEvent(@NotNull ApplicationReadyEvent event) {
         try {
-            Socket s = new Socket(ip, socketPort);
-            PrintWriter out = new PrintWriter(s.getOutputStream(), true);
-            out.write("http://" + s.getLocalAddress().getHostAddress() + ":" + localPort);
-            out.close();
-
+            sendCurrentIpAddress();
             TimerTask task = new TimerTask() {
                 public void run() {
                     Socket s = null;
                     try {
                         s = new Socket(ip, socketPort);
                     } catch (IOException e) {
-                        System.exit(0);
+                        log.warn("Disconnected from server");
+                        sendCurrentIpAddress();
+                        return;
                     }
                     PrintWriter out = null;
                     try {
@@ -77,7 +92,6 @@ public class ConnectToMainServer implements ApplicationListener<ApplicationReady
             log.error("=> check if endpoint is correct");
             log.error("=> check if host address is available");
             log.error("=> check if you are connected to lan");
-            System.exit(0);
         }
     }
 }
