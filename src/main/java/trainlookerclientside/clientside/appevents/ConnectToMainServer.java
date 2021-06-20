@@ -1,6 +1,5 @@
 package trainlookerclientside.clientside.appevents;
 
-import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Value;
@@ -30,68 +29,49 @@ public class ConnectToMainServer implements ApplicationListener<ApplicationReady
     @Value("${main-server.port}")
     private int mainPort;
 
-    private void sendCurrentIpAddress() {
+    private boolean sendCurrentIpAddress() {
         Socket s;
         try {
             s = new Socket(ip, socketPort);
-        } catch (IOException ignored) {
-            return;
+        } catch (IOException e) {
+            return false;
         }
-        PrintWriter out = null;
+        PrintWriter out;
         try {
             out = new PrintWriter(s.getOutputStream(), true);
-        } catch (IOException ignored) { }
-        assert out != null;
+        } catch (IOException e) {
+            return false;
+        }
         out.write("http://" + s.getLocalAddress().getHostAddress() + ":" + localPort);
         out.close();
+        return true;
     }
 
     @Override
     public void onApplicationEvent(@NotNull ApplicationReadyEvent event) {
-        try {
-            sendCurrentIpAddress();
-            TimerTask task = new TimerTask() {
-                public void run() {
-                    Socket s = null;
-                    try {
-                        s = new Socket(ip, socketPort);
-                    } catch (IOException e) {
-                        log.warn("Disconnected from server");
-                        sendCurrentIpAddress();
-                        return;
+        sendCurrentIpAddress();
+        TimerTask task = new TimerTask() {
+            public void run() {
+                Socket s = null;
+                try {
+                    s = new Socket(ip, socketPort);
+                } catch (IOException e) {
+                    while (!sendCurrentIpAddress()) {
+                        log.warn("connecting to server...");
                     }
+                }
+                if (s != null) {
                     PrintWriter out = null;
                     try {
                         out = new PrintWriter(s.getOutputStream(), true);
-                    } catch (IOException e) {
-                        e.printStackTrace();
+                    } catch (IOException ignored) { }
+                    if (out != null) {
+                        out.write("");
+                        out.close();
                     }
-                    assert out != null;
-                    out.write("");
-                    out.close();
                 }
-            };
-            new Timer().scheduleAtFixedRate(task, 1, 2000);
-
-//            DataOutputStream dout = new DataOutputStream(s.getOutputStream());
-//            dout.writeUTF("http://" + s.getLocalAddress().getHostAddress() + ":" + localPort);
-//            dout.flush();
-//            dout.close();
-//            RestTemplate restTemplate = new RestTemplate();
-//            HttpHeaders headers = new HttpHeaders();
-//            headers.setContentType(MediaType.APPLICATION_JSON);
-//            HttpEntity<String> request = new HttpEntity<>("{\"levelCrossingIP\":\"" + "http://" + s.getLocalAddress().getHostAddress() + ":" + localPort + "\", " + "\"id\":\"" + UUID.randomUUID().toString() + "\"}", headers);
-//            ResponseEntity<String> response = restTemplate.postForEntity(
-//                    "http://" + ip + ":" + mainPort + "/api/server/registerNewLevelCrossing",
-//                    request,
-//                    String.class);
-//            log.warn(response.getBody());
-        } catch (Exception e) {
-            log.error("Can't connect to main server:");
-            log.error("=> check if main server is online");
-            log.error("=> check if endpoint is correct");
-            log.error("=> check if host address is available");
-            log.error("=> check if you are connected to lan");
-        }
+            }
+        };
+        new Timer().scheduleAtFixedRate(task, 1, 2000);
     }
 }
