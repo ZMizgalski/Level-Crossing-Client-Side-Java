@@ -44,38 +44,36 @@ public class ConnectToMainServer implements ApplicationListener<ApplicationReady
         }
         out.write("http://" + s.getLocalAddress().getHostAddress() + ":" + localPort);
         out.close();
+        log.info("Connection has been established");
         return true;
     }
 
     @Override
     public void onApplicationEvent(@NotNull ApplicationReadyEvent event) {
-        sendCurrentIpAddress();
         log.info("<=====================>");
         log.info("Waiting for remote host...");
         log.info("<=====================>");
+        sendCurrentIpAddress();
         TimerTask task = new TimerTask() {
             public void run() {
-                Socket s = null;
+                Socket s;
                 try {
                     s = new Socket(ip, socketPort);
-                    log.info("Connection has been established");
                 } catch (IOException e) {
-                    while (!sendCurrentIpAddress()) {
-                        log.warn("Connecting to server...");
-                    }
+                    log.warn("Trying to connect to server....");
+                    sendCurrentIpAddress();
+                    return;
                 }
-                if (s != null) {
-                    PrintWriter out = null;
-                    try {
-                        out = new PrintWriter(s.getOutputStream(), true);
-                    } catch (IOException ignored) { }
-                    if (out != null) {
-                        out.write("");
-                        out.close();
-                    }
+                PrintWriter out;
+                try {
+                    out = new PrintWriter(s.getOutputStream(), true);
+                } catch (IOException ignored) {
+                    return;
                 }
+                out.write("");
+                out.close();
             }
         };
-        new Timer().scheduleAtFixedRate(task, 1, 2000);
+        new Timer().schedule(task, 1000, 1000);
     }
 }
