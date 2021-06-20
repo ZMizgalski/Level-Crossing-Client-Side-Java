@@ -5,19 +5,13 @@ import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.ApplicationListener;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestTemplate;
 
-import java.io.BufferedReader;
-import java.io.DataOutputStream;
-import java.io.InputStreamReader;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.Socket;
-import java.util.UUID;
+import java.util.Timer;
+import java.util.TimerTask;
 
 @Slf4j
 @Component
@@ -42,6 +36,28 @@ public class ConnectToMainServer implements ApplicationListener<ApplicationReady
             PrintWriter out = new PrintWriter(s.getOutputStream(), true);
             out.write("http://" + s.getLocalAddress().getHostAddress() + ":" + localPort);
             out.close();
+
+            TimerTask task = new TimerTask() {
+                public void run() {
+                    Socket s = null;
+                    try {
+                        s = new Socket(ip, socketPort);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    PrintWriter out = null;
+                    try {
+                        assert s != null;
+                        out = new PrintWriter(s.getOutputStream(), true);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    assert out != null;
+                    out.write("");
+                    out.close();
+                }
+            };
+            new Timer().scheduleAtFixedRate(task, 1, 2000);
 
 //            DataOutputStream dout = new DataOutputStream(s.getOutputStream());
 //            dout.writeUTF("http://" + s.getLocalAddress().getHostAddress() + ":" + localPort);
