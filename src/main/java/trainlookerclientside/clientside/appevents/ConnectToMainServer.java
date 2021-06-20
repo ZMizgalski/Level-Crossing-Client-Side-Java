@@ -50,14 +50,18 @@ public class ConnectToMainServer implements ApplicationListener<ApplicationReady
     @Override
     public void onApplicationEvent(@NotNull ApplicationReadyEvent event) {
         sendCurrentIpAddress();
+        log.info("<=====================>");
+        log.info("Waiting for remote host...");
+        log.info("<=====================>");
         TimerTask task = new TimerTask() {
             public void run() {
                 Socket s = null;
                 try {
                     s = new Socket(ip, socketPort);
+                    log.info("Connection has been established");
                 } catch (IOException e) {
                     while (!sendCurrentIpAddress()) {
-                        log.warn("connecting to server...");
+                        log.warn("Connecting to server...");
                     }
                 }
                 if (s != null) {
