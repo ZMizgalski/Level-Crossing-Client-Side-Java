@@ -43,11 +43,10 @@ public class ConnectToMainServer implements ApplicationListener<ApplicationReady
                     try {
                         s = new Socket(ip, socketPort);
                     } catch (IOException e) {
-                        e.printStackTrace();
+                        System.exit(0);
                     }
                     PrintWriter out = null;
                     try {
-                        assert s != null;
                         out = new PrintWriter(s.getOutputStream(), true);
                     } catch (IOException e) {
                         e.printStackTrace();
@@ -78,6 +77,7 @@ public class ConnectToMainServer implements ApplicationListener<ApplicationReady
             log.error("=> check if endpoint is correct");
             log.error("=> check if host address is available");
             log.error("=> check if you are connected to lan");
+            System.exit(0);
         }
     }
 }
