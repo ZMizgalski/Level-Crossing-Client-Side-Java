@@ -23,6 +23,7 @@ dependencies {
 //  implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.jetbrains:annotations:19.0.0'
+    implementation 'si.trina:socket-live:0.0.3'
     implementation 'commons-io:commons-io:2.9.0'
     implementation 'org.springframework.boot:spring-boot-starter-thymeleaf:2.5.0'
     implementation 'com.diozero:diozero-core:1.2.3'
