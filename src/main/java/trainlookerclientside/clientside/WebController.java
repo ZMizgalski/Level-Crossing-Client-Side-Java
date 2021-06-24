@@ -39,7 +39,32 @@ public class WebController {
     private String pwmFrequency;
 
     @SneakyThrows
-    @PostMapping(value = "/streamCamera/{id}")
+    @GetMapping(value = "/getStreamCover/{id}")
+    public ResponseEntity<?> streamCover(@PathVariable String id) {
+        String format = "jpg";
+        Process p1 = Runtime.getRuntime().exec("raspistill -w 640 -h 480 -n -o " + id + "." + format);
+        p1.waitFor();
+        InputStream inputStream = new FileInputStream(id + "." + format);
+        byte[] out = org.apache.commons.io.IOUtils.toByteArray(inputStream);
+        inputStream.close();
+        Process p3 = Runtime.getRuntime().exec("rm " + id + "." + format);
+        p3.waitFor();
+        HttpHeaders responseHeaders = new HttpHeaders();
+        responseHeaders.set(HttpHeaders.CONTENT_DISPOSITION, "filename=\"" + id + "." + format + "\"");
+        responseHeaders.set(HttpHeaders.CONTENT_RANGE, "" + (out.length - 1));
+        responseHeaders.set(HttpHeaders.ACCEPT_RANGES, "bytes");
+        responseHeaders.set(HttpHeaders.TRANSFER_ENCODING, "Binary");
+        responseHeaders.set(HttpHeaders.ETAG, "W/\"" + id + "\"");
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .contentLength(out.length)
+                .headers(responseHeaders)
+                .body(out);
+    }
+
+
+    @SneakyThrows
+    @GetMapping(value = "/streamCamera/{id}")
     public ResponseEntity<?> streamCamera(@PathVariable String id) {
         String format = "h264";
         String outFormat = "mp4";
