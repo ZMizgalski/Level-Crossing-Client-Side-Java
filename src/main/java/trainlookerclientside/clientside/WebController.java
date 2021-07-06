@@ -7,14 +7,26 @@ import com.diozero.internal.spi.PwmOutputDeviceFactoryInterface;
 import com.diozero.util.SleepUtil;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.FilenameUtils;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.text.SimpleDateFormat;
+import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import static trainlookerclientside.clientside.DataService.move4Motors;
 
 @Slf4j
 @RestController
@@ -39,33 +51,33 @@ public class WebController {
     private String pwmFrequency;
 
     @SneakyThrows
-    @GetMapping(value = "/getStreamCover/{id}")
-    public ResponseEntity<?> streamCover(@PathVariable String id) {
+    @GetMapping(value = "/getStreamCover")
+    public ResponseEntity<?> streamCover() {
+        String fileName = "cameraCover";
         String format = "jpg";
-        Process p1 = Runtime.getRuntime().exec("raspistill -w 640 -h 480 -n -o " + id + "." + format);
-        p1.waitFor();
-        InputStream inputStream = new FileInputStream(id + "." + format);
-        byte[] out = org.apache.commons.io.IOUtils.toByteArray(inputStream);
-        inputStream.close();
-        Process p3 = Runtime.getRuntime().exec("rm " + id + "." + format);
-        p3.waitFor();
+        File file = new File(fileName + "." + format);
+        if (!file.exists()) {
+            return ResponseEntity.badRequest().body("file not exists!");
+        }
+        byte[] bytes = Files.readAllBytes(file.toPath());
         HttpHeaders responseHeaders = new HttpHeaders();
-        responseHeaders.set(HttpHeaders.CONTENT_DISPOSITION, "filename=\"" + id + "." + format + "\"");
-        responseHeaders.set(HttpHeaders.CONTENT_RANGE, "" + (out.length - 1));
+        responseHeaders.set(HttpHeaders.CONTENT_DISPOSITION, "filename=\"" + fileName + "." + format + "\"");
+        responseHeaders.set(HttpHeaders.CONTENT_RANGE, "" + (bytes.length - 1));
         responseHeaders.set(HttpHeaders.ACCEPT_RANGES, "bytes");
         responseHeaders.set(HttpHeaders.TRANSFER_ENCODING, "Binary");
-        responseHeaders.set(HttpHeaders.ETAG, "W/\"" + id + "\"");
+        responseHeaders.set(HttpHeaders.ETAG, "W/\"" + fileName + "\"");
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                .contentLength(out.length)
+                .contentLength(bytes.length)
                 .headers(responseHeaders)
-                .body(out);
+                .body(bytes);
     }
-
 
     @SneakyThrows
     @GetMapping(value = "/streamCamera/{id}")
     public ResponseEntity<?> streamCamera(@PathVariable String id) {
+        Process p0 = Runtime.getRuntime().exec("pkill raspivid");
+        p0.waitFor();
         String format = "h264";
         String outFormat = "mp4";
         Process p1 = Runtime.getRuntime().exec("raspivid -w 640 -h 480 -n -t 5000 -o " + id + "." + format);
@@ -122,44 +134,51 @@ public class WebController {
                 true);
     }
 
-    private ResponseEntity<?> move4Motors(String levelCrossingId,
-                                          String okResponseMessage,
-                                          String badResponseMessage,
-                                          String motor1Port,
-                                          String motor2Port,
-                                          String motor3Port,
-                                          String motor4Port,
-                                          float delay,
-                                          float pwmValue,
-                                          String pwmFrequency,
-                                          boolean close) {
-        int mot1 = motor1Port == null ? 0 : Integer.parseInt(motor1Port);
-        int mot2 = motor2Port == null ? 1 : Integer.parseInt(motor2Port);
-        int mot3 = motor3Port == null ? 2 : Integer.parseInt(motor3Port);
-        int mot4 = motor4Port == null ? 3 : Integer.parseInt(motor4Port);
-        int pwmFreq = pwmFrequency == null ? 50 : Integer.parseInt(pwmFrequency);
-        float fPwm = pwmValue == 0 ? 0.2f : pwmValue;
-        float fDelay = delay == 0 ? 0.5f : delay;
-        try (PwmOutputDeviceFactoryInterface df = new PCA9685(pwmFreq);
-             PwmLed led1 = new PwmLed(df, mot1);
-             PwmLed led2 = new PwmLed(df, mot2);
-             PwmLed led3 = new PwmLed(df, mot3);
-             PwmLed led4 = new PwmLed(df, mot4)
-        ) {
-            led1.setValue(fPwm);
-            led2.setValue(fPwm);
-            if (!close) {
-                led2.toggle();
-            }
-            led3.setValue(fPwm);
-            if (!close) {
-                led3.toggle();
-            }
-            led4.setValue(fPwm);
-            SleepUtil.sleepSeconds(fDelay);
-        } catch (RuntimeIOException e) {
-            return ResponseEntity.badRequest().body(String.format(badResponseMessage, levelCrossingId));
+    @SneakyThrows
+    @GetMapping(value = "/getFileByDate/{date}")
+    public ResponseEntity<?> getFile(@PathVariable("date") @DateTimeFormat(pattern = "yyyy-MM-dd_HH-mm-ss") Date date) {
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd/HH-mm-ss");
+        String formattedDate = dateFormat.format(date);
+        HttpHeaders headers = new HttpHeaders();
+        File file = new File("videos/" + formattedDate + ".mp4");
+        if (!file.exists()) {
+            return ResponseEntity.badRequest().body("file not exists!");
         }
-        return ResponseEntity.ok().body(String.format(okResponseMessage, levelCrossingId));
+        byte[] bytes = Files.readAllBytes(file.toPath());
+        String type = FilenameUtils.getExtension(dateFormat + ".mp4");
+        return ResponseEntity.ok()
+                .contentType(MediaType.valueOf("video/" + type))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "filename=\"" + file.getName() + "\"")
+                .body(bytes);
+    }
+
+    @SneakyThrows
+    @GetMapping(value = "/downloadFileByDate/{date}")
+    public ResponseEntity<?> downloadFile(@PathVariable("date") @DateTimeFormat(pattern = "yyyy-MM-dd_HH-mm-ss") Date date) {
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd/HH-mm-ss");
+        String formattedDate = dateFormat.format(date);
+        HttpHeaders headers = new HttpHeaders();
+        File file = new File("videos/" + formattedDate + ".mp4");
+        if (!file.exists()) {
+            return ResponseEntity.badRequest().body("file not exists!");
+        }
+        byte[] bytes = Files.readAllBytes(file.toPath());
+        String type = FilenameUtils.getExtension(dateFormat + ".mp4");
+        return ResponseEntity.ok()
+                .contentType(MediaType.valueOf("video/" + type))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + file.getName() + "\"")
+                .body(bytes);
+    }
+
+    @SneakyThrows
+    @GetMapping(value = "/getFilesByDay/{date}")
+    public ResponseEntity<?> getFiles(@PathVariable("date") @DateTimeFormat(pattern = "yyyy-MM-dd") Date date) {
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd");
+        String formattedDate = dateFormat.format(date);
+        Set<String> elo = Stream.of(Objects.requireNonNull(new File("videos/" + formattedDate).listFiles()))
+                .filter(file -> !file.isDirectory())
+                .map(File::getName)
+                .collect(Collectors.toSet());
+        return ResponseEntity.ok().body(elo);
     }
 }
