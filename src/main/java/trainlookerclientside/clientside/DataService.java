@@ -5,6 +5,8 @@ import com.diozero.devices.PCA9685;
 import com.diozero.devices.PwmLed;
 import com.diozero.internal.spi.PwmOutputDeviceFactoryInterface;
 import com.diozero.util.SleepUtil;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.SneakyThrows;
 import org.apache.commons.io.FileUtils;
 import org.springframework.http.ResponseEntity;
@@ -26,6 +28,11 @@ import java.util.stream.Stream;
 
 @Service
 public class DataService {
+
+
+    @Setter
+    @Getter
+    public static String tmpFolderPath;
 
     public static int coverCounter = 0;
 
@@ -84,20 +91,39 @@ public class DataService {
         String format = "h264";
         String outFormat = "mp4";
         int duration = durationInSec * 1000;
-        Process p1 = Runtime.getRuntime().exec("raspivid -w 640 -h 480 -n -t " + duration + " -o " + workDate + "." + format);
+        Process p1 = Runtime.getRuntime().exec("raspivid -w 640 -h 480 -n -t " + duration + " -o "+ getTmpFolderPath() + workDate + "." + format);
         p1.waitFor();
-        Process p2 = Runtime.getRuntime().exec("MP4Box -add " + workDate + "." + format + " " + workDate + "." + outFormat);
+        Process p2 = Runtime.getRuntime().exec("MP4Box -add "+ getTmpFolderPath() + workDate + "." + format + " "+ getTmpFolderPath() + workDate + "." + outFormat);
         p2.waitFor();
-        InputStream inputStream = new FileInputStream(workDate + "." + outFormat);
+        InputStream inputStream = new FileInputStream(getTmpFolderPath() + workDate + "." + outFormat);
         FileUtils.copyInputStreamToFile(inputStream, new File("videos/" + date + "." + outFormat));
         inputStream.close();
-        Process p3 = Runtime.getRuntime().exec("rm " + workDate + "." + format);
+        Process p3 = Runtime.getRuntime().exec("rm "+ getTmpFolderPath() + workDate + "." + format);
         p3.waitFor();
-        Process p4 = Runtime.getRuntime().exec("rm " + workDate + "." + outFormat);
+        Process p4 = Runtime.getRuntime().exec("rm "+ getTmpFolderPath() + workDate + "." + outFormat);
         p4.waitFor();
     }
 
+    public static String execCmd(String cmd) throws java.io.IOException, InterruptedException {
+        Process process = Runtime.getRuntime().exec(cmd);
+        process.waitFor();
+        java.util.Scanner s = new java.util.Scanner(process.getInputStream()).useDelimiter("\\A");
+        return s.hasNext() ? s.next() : "";
+    }
+
     public static void deleteOldVideos(long filesRemovePeriod) {
+        File videosFile = new File("videos");
+        if (!videosFile.exists()) {
+            videosFile.mkdir();
+        }
+        File tmpFile = new File("videos/tmp");
+        if (!tmpFile.exists()) {
+            tmpFile.mkdir();
+        } else {
+            try {
+                FileUtils.cleanDirectory(tmpFile);
+            } catch (IOException ignored) { }
+        }
         long DAY_IN_MS = 1000 * 60 * 60 * 24;
         Date date = new Date(System.currentTimeMillis() - (filesRemovePeriod * DAY_IN_MS));
         SimpleDateFormat monthDate = new SimpleDateFormat("yyyy/MM");
@@ -122,9 +148,7 @@ public class DataService {
                     file.toFile().delete();
                 }
             });
-        } catch (IOException e) {
-            //
-        }
+        } catch (IOException ignored) { }
     }
 
     @SneakyThrows
@@ -139,17 +163,19 @@ public class DataService {
 
 
     public static void getCover() throws IOException, InterruptedException {
+        setTmpFolderPath("videos/tmp/");
         String format = "jpg";
         String fileName = "cameraCover";
+        System.out.println(getTmpFolderPath());
         try {
-            if (new File(fileName + "." + format).exists()) {
-                Process p3 = Runtime.getRuntime().exec("rm " + fileName + "." + format);
+            if (new File(getTmpFolderPath() + fileName + "." + format).exists()) {
+                Process p3 = Runtime.getRuntime().exec("rm "+ getTmpFolderPath() + fileName + "." + format);
                 p3.waitFor();
             }
         } catch (Exception e) {
             //
         }
-        Process p1 = Runtime.getRuntime().exec("raspistill -w 640 -h 480 -n -o " + fileName + "." + format);
+        Process p1 = Runtime.getRuntime().exec("raspistill -w 640 -h 480 -n -o "+ getTmpFolderPath() + fileName + "." + format);
         p1.waitFor();
     }
 

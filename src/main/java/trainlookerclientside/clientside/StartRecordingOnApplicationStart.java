@@ -1,10 +1,13 @@
 package trainlookerclientside.clientside;
 
+import lombok.SneakyThrows;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.ApplicationListener;
 import org.springframework.stereotype.Component;
 
-import static trainlookerclientside.clientside.DataService.deleteOldVideos;
+import java.io.IOException;
+
+import static trainlookerclientside.clientside.DataService.*;
 
 
 @Component

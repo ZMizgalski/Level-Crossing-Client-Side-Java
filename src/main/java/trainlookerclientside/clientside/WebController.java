@@ -1,10 +1,5 @@
 package trainlookerclientside.clientside;
 
-import com.diozero.api.RuntimeIOException;
-import com.diozero.devices.PCA9685;
-import com.diozero.devices.PwmLed;
-import com.diozero.internal.spi.PwmOutputDeviceFactoryInterface;
-import com.diozero.util.SleepUtil;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
@@ -13,9 +8,8 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.scheduling.annotation.Async;
-import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.web.bind.annotation.*;
+import trainlookerclientside.clientside.models.LogsModel;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -27,6 +21,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static trainlookerclientside.clientside.DataService.move4Motors;
+import static trainlookerclientside.clientside.DataService.tmpFolderPath;
 
 @Slf4j
 @RestController
@@ -55,7 +50,7 @@ public class WebController {
     public ResponseEntity<?> streamCover() {
         String fileName = "cameraCover";
         String format = "jpg";
-        File file = new File(fileName + "." + format);
+        File file = new File("videos/tmp/" + fileName + "." + format);
         if (!file.exists()) {
             return ResponseEntity.badRequest().body("file not exists!");
         }
@@ -73,6 +68,7 @@ public class WebController {
                 .body(bytes);
     }
 
+
     @SneakyThrows
     @GetMapping(value = "/streamCamera/{id}")
     public ResponseEntity<?> streamCamera(@PathVariable String id) {
@@ -80,16 +76,16 @@ public class WebController {
         p0.waitFor();
         String format = "h264";
         String outFormat = "mp4";
-        Process p1 = Runtime.getRuntime().exec("raspivid -w 640 -h 480 -n -t 5000 -o " + id + "." + format);
+        Process p1 = Runtime.getRuntime().exec("raspivid -w 640 -h 480 -n -t 5000 -o "+ tmpFolderPath + id + "." + format);
         p1.waitFor();
-        Process p2 = Runtime.getRuntime().exec("MP4Box -add " + id + "." + format + " " + id + "." + outFormat);
+        Process p2 = Runtime.getRuntime().exec("MP4Box -add "+ tmpFolderPath + id + "." + format + " "+ tmpFolderPath + id + "." + outFormat);
         p2.waitFor();
-        InputStream inputStream = new FileInputStream(id + "." + outFormat);
+        InputStream inputStream = new FileInputStream(tmpFolderPath + id + "." + outFormat);
         byte[] out = org.apache.commons.io.IOUtils.toByteArray(inputStream);
         inputStream.close();
-        Process p3 = Runtime.getRuntime().exec("rm " + id + "." + format);
+        Process p3 = Runtime.getRuntime().exec("rm "+ tmpFolderPath + id + "." + format);
         p3.waitFor();
-        Process p4 = Runtime.getRuntime().exec("rm " + id + "." + outFormat);
+        Process p4 = Runtime.getRuntime().exec("rm "+ tmpFolderPath + id + "." + outFormat);
         p4.waitFor();
         HttpHeaders responseHeaders = new HttpHeaders();
         responseHeaders.set(HttpHeaders.CONTENT_DISPOSITION, "filename=\"" + id + "." + outFormat + "\"");
@@ -164,21 +160,24 @@ public class WebController {
         }
         byte[] bytes = Files.readAllBytes(file.toPath());
         String type = FilenameUtils.getExtension(dateFormat + ".mp4");
+
         return ResponseEntity.ok()
                 .contentType(MediaType.valueOf("video/" + type))
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + file.getName() + "\"")
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + file.getName() + ".mp4" + "\"")
                 .body(bytes);
     }
 
     @SneakyThrows
-    @GetMapping(value = "/getFilesByDay/{date}")
-    public ResponseEntity<?> getFiles(@PathVariable("date") @DateTimeFormat(pattern = "yyyy-MM-dd") Date date) {
+    @GetMapping(value = "/getFilesByDay/{date}/{id}")
+    public ResponseEntity<?> getFiles(@PathVariable("id") String id, @PathVariable("date") @DateTimeFormat(pattern = "yyyy-MM-dd") Date date) {
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd");
         String formattedDate = dateFormat.format(date);
-        Set<String> elo = Stream.of(Objects.requireNonNull(new File("videos/" + formattedDate).listFiles()))
+        Set<String> fileNames = Stream.of(Objects.requireNonNull(new File("videos/" + formattedDate).listFiles()))
                 .filter(file -> !file.isDirectory())
                 .map(File::getName)
                 .collect(Collectors.toSet());
-        return ResponseEntity.ok().body(elo);
+        List<LogsModel> logs = new ArrayList<>();
+        fileNames.parallelStream().forEach( value -> logs.add(new LogsModel(id, new SimpleDateFormat("yyyy-MM-dd").format(date) + "_" + value.replaceAll(".mp4", ""))));
+        return ResponseEntity.ok().body(logs);
     }
 }
